@@ -1,23 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 
 public struct Point2D
 {
 	public int X; public int Y;
 	public override string ToString() { return X + " " + Y; }
-	internal long DistanceSquaredTo(Point2D p)
+	internal double DistanceSquaredTo(Point2D p)
 	{
-		return (X - p.X) * (X - p.X) + (Y - p.Y) * (Y - p.Y);
-	}
-	internal long DistanceSquaredToOrigin()
-	{
-		return X * X + Y * Y;
+		return Math.Pow(X - p.X, 2) + Math.Pow(Y - p.Y, 2);
 	}
 }
-
-public class Node { public Point2D Point; public long Cost; public Node prev; }
 
 class Program
 {
@@ -27,55 +20,60 @@ class Program
 	{
 		N = int.Parse(Console.ReadLine());
 		Points = GetPoints(N);
-		var sw = Stopwatch.StartNew();
-		//for (int i = 0; i < 1000; i++)
-		//{
-			var done = new HashSet<Point2D>();
-			var alwaysClosest = AlwaysClosest(done);
-			done.Clear();
-			var sum = DFS(new Node { Point = new Point2D(), Cost = 0 }, new Node { Cost = long.MaxValue }, done);
-			Console.WriteLine(sum.Cost);
-		//}
-		Console.WriteLine(sw.ElapsedMilliseconds);
-	}
-
-	private static double AlwaysClosest(HashSet<Point2D> done)
-	{
 		var cur = new Point2D();
+		var done = new HashSet<Point2D>();
 		double alwaysClosest = 0;
+
+		if (Points.All(i => i.X == 0))
+		{
+			var max = Points.Max(i => i.Y);
+			var min = Points.Min(i => i.Y);
+			double dist = 0;
+			if (max >= 0 && min <= 0)
+				dist = Math.Sqrt(max * max) * 2 + Math.Sqrt(min * min) * 2;
+			else if (max > 0 && min > 0)
+				dist = Math.Sqrt(max * max) * 2;
+			else if (max < 0 && min < 0)
+				dist = Math.Sqrt(min * min) * 2;
+
+			Console.WriteLine(dist);
+			return;
+		}
 		for (int i = 0; i < N; i++)
 		{
 			var next = Closest(cur, done);
 			done.Add(next);
-			var dist = cur.DistanceSquaredTo(next);
-			alwaysClosest += dist;
+			alwaysClosest += Math.Sqrt(cur.DistanceSquaredTo(next));
 			cur = next;
 		}
-		return alwaysClosest + cur.X * cur.X + cur.Y * cur.Y; ;
+		alwaysClosest += Math.Sqrt(cur.X * cur.X + cur.Y * cur.Y);
+
+
+
+		var sum = DFS(new Point2D(), 0, alwaysClosest, new HashSet<Point2D>());
+		Console.WriteLine(sum);
 	}
 
-	static Node DFS(Node cur, Node best, HashSet<Point2D> done)
+	static double DFS(Point2D cur, double curDist, double bestDist, HashSet<Point2D> done)
+
 	{
-		if (cur.Cost > best.Cost) return best;
+		if (curDist > bestDist) return bestDist;
 		if (done.Count == Points.Length)
 		{
-			var newDist = cur.Cost + cur.Point.DistanceSquaredToOrigin();
-			return new Node { Point = new Point2D(), prev = cur, Cost = newDist };
+			curDist += Math.Sqrt(cur.X * cur.X + cur.Y * cur.Y);
+			if (curDist > bestDist) return bestDist;
+			else return curDist;
 		}
 		for (int i = 0; i < N; i++)
 		{
 			var p = Points[i];
 			if (done.Contains(p)) continue;
-
-			var newDist = cur.Cost + cur.Point.DistanceSquaredTo(p);
-			if (newDist + p.DistanceSquaredToOrigin() > best.Cost)
-				return best;
-
+			var newDist = curDist + Math.Sqrt(cur.DistanceSquaredTo(p));
 			done.Add(p);
-			best = DFS(new Node { Point = p, prev = cur, Cost = newDist }, best, done);
+			bestDist = DFS(p, newDist, bestDist, done);
 			done.Remove(p);
 		}
-		return best;
+		return bestDist;
 	}
 
 	static Point2D Closest(Point2D p, HashSet<Point2D> done)
@@ -88,21 +86,14 @@ class Program
 
 	private static Point2D[] GetPoints(int N)
 	{
-		var rand = new Random();
 		var points = new Point2D[N];
 		for (int i = 0; i < N; i++)
 		{
-			//var data = Console.ReadLine().Split(' ');
-			//points[i] = new Point2D
-			//{
-			//	X = int.Parse(data[0]),
-			//	Y = int.Parse(data[1])
-			//};
-
+			var data = Console.ReadLine().Split(' ');
 			points[i] = new Point2D
 			{
-				X = rand.Next(-10000, 10000),
-				Y = rand.Next(-10000, 10000)
+				X = int.Parse(data[0]),
+				Y = int.Parse(data[1])
 			};
 		}
 		return points;
