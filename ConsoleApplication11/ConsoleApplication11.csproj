@@ -51,6 +51,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Geimskip.cs" />
     <Compile Include="KdTree.cs" />
     <Compile Include="Dans.cs" />
     <Compile Include="RectHV.cs" />
