@@ -32,6 +32,8 @@ class Program
 			return;
 		}
 
+		//var groups = new List<int[]>();
+
 		var answer = DFS(N, shirtsRequests, shirts, done);
 		if (answer)
 		{
@@ -53,17 +55,19 @@ class Program
 
 			var req = shirtsReqs[i];
 			done.Add(i);
-
 			for (int size = req.Min; size <= req.Max; size++)
 			{
 				size = shirts.Keys.FirstOrDefault(s => s >= size && s <= req.Max);
 				if (size == 0) break;
-				if (shirts[size] != 0)
-				{
-					shirts[size] -= 1;
-					if (DFS(N, shirtsReqs, shirts, done)) return true;
-					shirts[size] += 1;
-				}
+				
+				shirts[size] -= 1;
+				if (shirts[size] == 0) shirts.Remove(size);
+
+				if (DFS(N, shirtsReqs, shirts, done)) return true;
+
+				if (shirts.ContainsKey(size)) shirts[size] += 1;
+				else shirts[size] = 1;
+				
 			}
 			done.Remove(i);
 			return false;
