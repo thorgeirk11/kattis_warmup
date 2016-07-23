@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 class Program
 {
+	private const int RandSize = 41;
+
 	struct ShirtRequest
 	{
 		public int Min; public int Max;
@@ -12,41 +15,121 @@ class Program
 			return "(" + Min + ", " + Max + ")";
 		}
 	}
-
 	static void Main()
 	{
 		var N = int.Parse(Console.ReadLine());
-		var shirtsRequests = new Dictionary<ShirtRequest, int>();
+		var shirtsReqs = new Dictionary<ShirtRequest, int>();
 		var shirts = new Dictionary<int, int>();
 
-		//ReadShirtsRand(N, shirts, ReadShirtRequestRand(N, shirtsRequests));
-
-		ReadShirtRequest(shirtsRequests, N);
+		ReadShirtRequest(shirtsReqs, N);
 		ReadShirts(N, shirts);
 
-		if (!Preprocess(shirtsRequests, shirts))
+		if (RemoveEqualMinMax(shirtsReqs, shirts) &&
+			Process(shirtsReqs, shirts))
+		{
+			Console.WriteLine("Jebb");
+		}
+		else
 		{
 			Console.WriteLine("Neibb");
-			return;
+		}
+	}
+	//static void Main()
+	//{
+	//	var N = int.Parse(Console.ReadLine());
+	//	var shirtsReqs = new Dictionary<ShirtRequest, int>();
+	//	var shirts = new Dictionary<int, int>();
+	//	var shirtsReqs2 = new Dictionary<ShirtRequest, int>();
+	//	var shirts2 = new Dictionary<int, int>();
+	//	var itt = 0;
+	//	do
+	//	{
+	//		do
+	//		{
+	//			shirts.Clear();
+	//			shirtsReqs.Clear();
+	//			ReadShirtsRand(N, shirts, ReadShirtRequestRand(N, shirtsReqs));
+	//			shirtsReqs2 = shirtsReqs.ToDictionary(i => i.Key, i => i.Value);
+	//			shirts2 = shirts.ToDictionary(i => i.Key, i => i.Value);
+	//			//Console.WriteLine(itt++);
+	//		} while (!Preprocess(shirtsReqs, shirts));
+
+	//		var sw = Stopwatch.StartNew();
+	//		if (RemoveEqualMinMax(shirtsReqs, shirts) && 
+	//			Process(shirtsReqs, shirts))
+	//		{
+	//			Console.WriteLine("Jebb " + itt++ + " " + sw.ElapsedMilliseconds);
+	//		}
+	//		else
+	//		{
+	//			Console.WriteLine("Neibb " + itt++ + " " + sw.ElapsedMilliseconds);
+	//		}
+	//		if (sw.ElapsedMilliseconds > 2000)
+	//		{
+	//			Print(shirtsReqs2, shirts2);
+	//		}
+	//	} while (true);
+	//}
+	private static void Print(Dictionary<ShirtRequest, int> shirtsReqs, Dictionary<int, int> shirts)
+	{
+		foreach (var item in shirtsReqs.OrderBy(i => i.Key.Min))
+		{
+			for (int i = 0; i < item.Value; i++)
+				Console.WriteLine("{0} {1}", item.Key.Min, item.Key.Max);
 		}
 
+		var s = shirts.Aggregate("", (i, j) => i + string.Join(" ", Enumerable.Repeat(j.Key, j.Value).ToArray()) + " ");
+		Console.WriteLine(s);
+	}
 
-		if (shirtsRequests.Count == 1)
+	private static bool RemoveEqualMinMax(Dictionary<ShirtRequest, int> shirtsReqs, Dictionary<int, int> shirts)
+	{
+		var done = new List<ShirtRequest>();
+		foreach (var req in shirtsReqs.Keys)
 		{
-			var req = shirtsRequests.First().Key;
-			var numberOfShirts = shirts.Where(s => s.Key >= req.Min && s.Key <= req.Max).Sum(i => i.Value);
-			if (shirtsRequests[req] == numberOfShirts)
+			if (req.Min != req.Max) continue;
+			if (shirts.ContainsKey(req.Min) &&
+				shirts[req.Min] >= shirtsReqs[req])
 			{
-				Console.WriteLine("Jebb");
+				done.Add(req);
+				var left = shirts[req.Min] -= shirtsReqs[req];
+				if (left == 0) shirts.Remove(req.Min);
 			}
 			else
-			{
-				Console.WriteLine("Neibb");
-			}
-			return;
+				return false;
+		}
+		foreach (var req in done) shirtsReqs.Remove(req);
+		return true;
+	}
+
+	private static bool Process(Dictionary<ShirtRequest, int> shirtsReqs, Dictionary<int, int> shirts)
+	{
+		if (!Preprocess(shirtsReqs, shirts))
+		{
+			return false;
 		}
 
+		if (shirtsReqs.Count == 1)
+		{
+			var req = shirtsReqs.First().Key;
+			var numberOfShirts = shirts.Where(s => s.Key >= req.Min && s.Key <= req.Max).Sum(i => i.Value);
+			return shirtsReqs[req] == numberOfShirts;
+		}
+		var groups = GetRangeGroups(shirtsReqs);
+		foreach (var group in groups)
+		{
+			var numShirts = shirts.Where(s => s.Key >= group.Min && s.Key <= group.Max).Sum(i => i.Value);
+			var numReq = shirtsReqs.Where(s => s.Key.Min >= group.Min && s.Key.Max <= group.Max).Sum(i => i.Value);
+			if (numReq != numShirts || !DFS(shirtsReqs, shirts, group))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
 
+	private static List<ShirtRequest> GetRangeGroups(Dictionary<ShirtRequest, int> shirtsRequests)
+	{
 		var groups = new List<ShirtRequest>();
 		foreach (var req in shirtsRequests.Keys)
 		{
@@ -67,28 +150,14 @@ class Program
 			groups.RemoveAll(g => g.Max <= newGroup.Max && g.Min >= newGroup.Min);
 			groups.Add(newGroup);
 		}
-
-		foreach (var group in groups)
-		{
-			if (!DFS(shirtsRequests, shirts, group))
-			{
-				Console.WriteLine("Neibb");
-				return;
-			}
-		}
-		Console.WriteLine("Jebb");
+		return groups;
 	}
 
-	private static bool DFS(Dictionary<ShirtRequest, int> shirtsReqs, Dictionary<int, int> shirts, ShirtRequest group)
+	private static bool DFS(Dictionary<ShirtRequest, int> shirtsReqs, Dictionary<int, int> shirts, ShirtRequest requestGroup)
 	{
 		if (shirtsReqs.Count == 0) return true;
-		var requests = shirtsReqs.Keys.Where(i => i.Min >= group.Min && i.Max <= group.Max).ToArray();
-		foreach (var req in requests)
+		foreach (var req in shirtsReqs.Keys.OrderBy(i => shirts.Count(s => s.Key >= i.Min && s.Key <= i.Max)))
 		{
-			shirtsReqs[req] -= 1;
-			if (shirtsReqs[req] == 0)
-				shirtsReqs.Remove(req);
-
 			for (int size = req.Min; size <= req.Max; size++)
 			{
 				size = shirts.Keys.FirstOrDefault(s => s >= size && s <= req.Max);
@@ -97,16 +166,18 @@ class Program
 				shirts[size] -= 1;
 				if (shirts[size] == 0) shirts.Remove(size);
 
-				if (DFS(shirtsReqs, shirts, group)) return true;
+				var newShirtReqs = shirtsReqs.Where(i => i.Key.Min >= requestGroup.Min && i.Key.Max <= requestGroup.Max).ToDictionary(i => i.Key, i => i.Value);
+				var newShirts = shirts.Where(i => i.Key >= requestGroup.Min && i.Key <= requestGroup.Max).ToDictionary(i => i.Key, i => i.Value);
+
+				newShirtReqs[req] -= 1;
+				if (newShirtReqs[req] == 0)
+					newShirtReqs.Remove(req);
+
+				if (Process(newShirtReqs, newShirts)) return true;
 
 				if (shirts.ContainsKey(size)) shirts[size] += 1;
 				else shirts[size] = 1;
 			}
-
-			if (shirtsReqs.ContainsKey(req))
-				shirtsReqs[req] += 1;
-			else
-				shirtsReqs[req] = 1;
 			return false;
 		}
 		return false;
@@ -114,91 +185,67 @@ class Program
 
 	private static bool Preprocess(Dictionary<ShirtRequest, int> shirtsRequests, Dictionary<int, int> shirts)
 	{
+		var done = new List<ShirtRequest>();
 		bool needToCheckAgain;
 		do
 		{
 			needToCheckAgain = false;
-			foreach (var req in shirtsRequests.Keys.ToArray())
+			done.Clear();
+			foreach (var req in shirtsRequests.Keys)
 			{
-				if (req.Min == req.Max)
+				var count = 0;
+				var size = 0;
+				foreach (var shirt in shirts.Keys.Where(shirt => shirt >= req.Min && shirt <= req.Max))
 				{
-					if (shirts.ContainsKey(req.Min) &&
-						shirts[req.Min] >= shirtsRequests[req])
+					count++;
+					if (count > 1) break;
+					size = shirt;
+				}
+				if (count == 0)
+				{
+					return false;
+				}
+				if (count == 1)
+				{
+					needToCheckAgain = true;
+					var left = shirts[size] -= shirtsRequests[req];
+					if (left < 0) return false;
+					if (left == 0) shirts.Remove(size);
+					done.Add(req);
+				}
+			}
+			foreach (var req in done) shirtsRequests.Remove(req);
+
+			if (!needToCheckAgain)
+			{
+				var shirtsDone = new List<int>();
+				foreach (var s in shirts)
+				{
+					var count = 0;
+					var req = default(KeyValuePair<ShirtRequest, int>);
+					foreach (var shirt in shirtsRequests.Where(i => i.Key.Min <= s.Key && i.Key.Max >= s.Key))
 					{
-						shirts[req.Min] -= shirtsRequests[req];
-						shirtsRequests.Remove(req);
-						if (shirts[req.Min] == 0)
-						{
-							needToCheckAgain = true;
-							shirts.Remove(req.Min);
-						}
+						count++;
+						if (count > 1) break;
+						req = shirt;
 					}
-					else
+					if (count == 1)
 					{
-						return false;
+						if (s.Value > req.Value) return false;
+						shirtsDone.Add(s.Key);
+
+						var left = shirtsRequests[req.Key] -= s.Value;
+						if (left == 0) shirtsRequests.Remove(req.Key);
+						needToCheckAgain = true;
 					}
 				}
-				//else
-				//{
-				//	var s = shirts.Keys.Where(shirt => shirt >= req.Min && shirt <= req.Max);
-				//	var count = s.Count();
-				//	if (count == 0)
-				//	{
-				//		return false;
-				//	}
-				//	if (count == 1)
-				//	{
-				//		needToCheckAgain = true;
-
-
-				//		shirtsRequests.Remove(req);
-				//		var size = s.First();
-				//		shirts[size] -= shirtsRequests[req];
-				//		if (shirts[size] == 0) shirts.Remove(size);
-				//	}
-				//}
+				foreach (var shirt in shirtsDone) shirts.Remove(shirt);
 			}
-
-			//if (!needToCheckAgain)
-			//{
-			//	var modifications = new Dictionary<int, int>();
-			//	foreach (var s in shirts)
-			//	{
-			//		var reqIndex = -1;
-			//		var found = true;
-			//		for (int i = 0; i < N; i++)
-			//		{
-			//			var sReq = shirtsRequests[i];
-			//			if (sReq.Min <= s.Key && sReq.Max >= s.Key)
-			//			{
-			//				if (reqIndex > -1)
-			//				{
-			//					found = false;
-			//					break;
-			//				}
-			//				reqIndex = i;
-			//			}
-			//		}
-			//		if (found)
-			//		{
-			//			done.Add(reqIndex);
-			//			if (modifications.ContainsKey(s.Key))
-			//				modifications[s.Key] += 1;
-			//			else
-			//				modifications[s.Key] = 1;
-			//			needToCheckAgain = true;
-			//		}
-			//	}
-			//	foreach (var mod in modifications)
-			//	{
-			//		shirts[mod.Key] -= mod.Value;
-			//		if (shirts[mod.Key] <= 0) shirts.Remove(mod.Key);
-			//	}
-			//}
 		} while (needToCheckAgain);
 
 		return true;
 	}
+
 
 	private static void ReadShirts(int N, Dictionary<int, int> shirts)
 	{
@@ -236,8 +283,8 @@ class Program
 		var totalMax = 0;
 		for (int i = 0; i < N; i++)
 		{
-			var min = rand.Next(1, 101);
-			var max = rand.Next(min, 101);
+			var min = rand.Next(1, RandSize);
+			var max = rand.Next(min, RandSize);
 			if (totalMax < max) totalMax = max;
 			var key = new ShirtRequest
 			{
