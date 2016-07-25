@@ -168,9 +168,7 @@ class Program
 		var groups = GetRangeGroups(shirtsReqs);
 		foreach (var group in groups)
 		{
-			var reqCount = shirtsReqs.Where(i => i.Key.Min >= group.Min && i.Key.Max <= group.Max).Sum(i => i.Value);
-			var shirtCount = shirts.Where(i => i.Key >= group.Min && i.Key <= group.Max).Sum(i => i.Value);
-			if (reqCount == shirtCount && !DFS(shirtsReqs, shirts, group))
+			if (!DFS(shirtsReqs, shirts, group))
 			{
 				return false;
 			}
@@ -203,30 +201,6 @@ class Program
 		return groups;
 	}
 
-	private static bool DFSOnly(Dictionary<ShirtRequest, int> shirtReqs, Dictionary<int, int> shirts)
-	{
-		if (shirtReqs.Count == 0) return true;
-		foreach (var size in shirts.Keys)
-		{
-			foreach (var req in shirtReqs.Keys)
-			{
-				if (req.Min > size || req.Max < size) continue;
-
-				var newShirtReqs = shirtReqs.ToDictionary(i => i.Key, i => i.Value);
-				var newShirts = shirts.ToDictionary(i => i.Key, i => i.Value);
-
-				newShirts[size] -= 1;
-				newShirtReqs[req] -= 1;
-
-				if (newShirts[size] == 0) newShirts.Remove(size);
-				if (newShirtReqs[req] == 0) newShirtReqs.Remove(req);
-
-				if (DFSOnly(newShirtReqs, newShirts)) return true;
-			}
-			return false;
-		}
-		return false;
-	}
 	private static bool DFS(Dictionary<ShirtRequest, int> shirtReqs, Dictionary<int, int> shirts, ShirtRequest requestGroup)
 	{
 		if (shirtReqs.Count == 0) return true;
@@ -352,6 +326,30 @@ class Program
 				{
 					return false;
 				}
+
+				if (shirts.Count == 0 || shirtReqs.Count == 0) return true;
+
+				//Check for each range that there are enough shirts to satisfy requests.
+				foreach (var req in shirtReqs)
+				{
+					var r = shirtReqs.Where(i => i.Key.Min >= req.Key.Min && i.Key.Max <= req.Key.Max);
+					var s = shirts.Where(i => i.Key >= req.Key.Min && i.Key <= req.Key.Max);
+					var reqCount = r.Sum(i => i.Value);
+					var shirtCount = s.Sum(i => i.Value);
+					if (shirtCount < reqCount)
+						return false;
+					
+					var range = shirtReqs.Where(i => !(i.Key.Min > req.Key.Max || i.Key.Max < req.Key.Min));
+					var rangeCount = range.Sum(i => i.Value);
+					if (shirtCount == rangeCount)
+					{
+						shirtsDone.AddRange(s.Select(i => i.Key));
+						done.AddRange(range.Select(i => i.Key));
+						needToCheckAgain = true;
+					}
+				}
+				foreach (var shirt in shirtsDone) shirts.Remove(shirt);
+				foreach (var req in done) shirtReqs.Remove(req);
 
 			}
 		} while (needToCheckAgain);
