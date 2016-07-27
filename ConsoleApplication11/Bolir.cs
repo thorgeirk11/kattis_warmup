@@ -7,7 +7,6 @@ class Program
 {
 
 	static List<int> SearchOrder = new List<int>();
-	static List<ShirtRequest> reqSearchOrder = new List<ShirtRequest>();
 
 	private const int RandSize = 50;
 	struct ShirtRequest
@@ -47,8 +46,7 @@ class Program
 		var newShirts = shirts.ToDictionary(i => i.Key, i => i.Value);
 		var simpleWorked = SimpleAssgiment(shirtReqs, shirts, newShirtReqs, newShirts);
 		SearchOrder = shirts.Keys.OrderBy(i => i).ToList();
-		reqSearchOrder = shirtReqs.Keys.OrderBy(i => i.Min).ToList();
-		if (simpleWorked || Process(shirtReqs, shirts))
+		if (simpleWorked || DFS(shirtReqs, shirts))
 		{
 			Console.WriteLine("Jebb");
 		}
@@ -157,52 +155,43 @@ class Program
 		return true;
 	}
 
-	private static bool Process(Dictionary<ShirtRequest, int> shirtsReqs, Dictionary<int, int> shirts)
+	private static bool DFS(Dictionary<ShirtRequest, int> shirtReqs, Dictionary<int, int> shirts)
 	{
 		int prevCount;
 		do
 		{
-			prevCount = shirtsReqs.Count;
-			if (!Preprocess(shirtsReqs, shirts))
+			prevCount = shirtReqs.Count;
+			if (!Preprocess(shirtReqs, shirts))
 				return false;
-			if (!RemoveEqualMinMax(shirtsReqs, shirts))
+			if (!RemoveEqualMinMax(shirtReqs, shirts))
 				return false;
-		} while (prevCount > shirtsReqs.Count);
-		return DFS(shirtsReqs, shirts);
-	}
-	private static bool DFS(Dictionary<ShirtRequest, int> shirtReqs, Dictionary<int, int> shirts)
-	{
+		} while (prevCount > shirtReqs.Count);
+
 		if (shirtReqs.Count == 0) return true;
 		foreach (var size in SearchOrder)
 		{
 			if (!shirts.ContainsKey(size)) continue;
 
 			shirts[size] -= 1;
-			if (shirts[size] == 0)
-				shirts.Remove(size);
+			if (shirts[size] == 0) shirts.Remove(size);
 
-			foreach (var req in reqSearchOrder)
+			var newShirtReqs = shirtReqs.ToDictionary(i => i.Key, i => i.Value);
+			foreach (var req in shirtReqs.Keys)
 			{
-				if (!shirtReqs.ContainsKey(req)) continue;
 				if (req.Min > size || req.Max < size) continue;
 
-				shirtReqs[req] -= 1;
-				if (shirtReqs[req] == 0)
-					shirtReqs.Remove(req);
+				newShirtReqs[req] -= 1;
+				if (newShirtReqs[req] == 0) newShirtReqs.Remove(req);
 
-				if (Process(shirtReqs, shirts))
-					return true;
+				if (DFS(newShirtReqs, shirts)) return true;
 
-				if (!shirtReqs.ContainsKey(req))
-					shirtReqs[req] = 1;
-				else
-					shirtReqs[req] += 1;
+				if (!newShirtReqs.ContainsKey(req)) newShirtReqs[req] = 1;
+				else newShirtReqs[req] += 1;
 			}
-			if (!shirts.ContainsKey(size))
-			{
-				shirts[size] = 1;
-			}
+
+			if (!shirts.ContainsKey(size)) shirts[size] = 1;
 			else shirts[size] += 1;
+
 			return false;
 		}
 		return false;
