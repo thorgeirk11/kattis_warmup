@@ -5,7 +5,7 @@ using System.Diagnostics;
 
 class Program
 {
-	private const int RandSize = 41;
+	private const int RandSize = 50;
 	struct ShirtRequest
 	{
 		public int Min; public int Max;
@@ -22,8 +22,7 @@ class Program
 
 		ReadShirtRequest(N, shirtReqs);
 		ReadShirts(N, shirts);
-
-
+		
 		int prevCount;
 		do
 		{
@@ -75,7 +74,6 @@ class Program
 	//			break;
 	//		} while (true);
 
-
 	//		var newShirtReqs = shirtReqs.ToDictionary(i => i.Key, i => i.Value);
 	//		var newShirts = shirts.ToDictionary(i => i.Key, i => i.Value);
 	//		var simpleWorked = SimpleAssgiment(shirtReqs, shirts, newShirtReqs, newShirts);
@@ -101,6 +99,7 @@ class Program
 			var left = newShirtReqs[req] -= 1;
 			if (left == 0) newShirtReqs.Remove(req);
 
+			if (newShirts.Count == 0) return true;
 			var shirt = newShirts.Keys.OrderBy(i => i).First();
 			if (shirt >= req.Min && shirt <= req.Max)
 			{
@@ -204,7 +203,7 @@ class Program
 	private static bool DFS(Dictionary<ShirtRequest, int> shirtReqs, Dictionary<int, int> shirts, ShirtRequest requestGroup)
 	{
 		if (shirtReqs.Count == 0) return true;
-		foreach (var size in shirts.Keys)
+		foreach (var size in shirts.Keys.OrderBy(i => i))
 		{
 			if (requestGroup.Min > size || requestGroup.Max < size) continue;
 			foreach (var req in shirtReqs.Keys)
@@ -338,7 +337,7 @@ class Program
 					var shirtCount = s.Sum(i => i.Value);
 					if (shirtCount < reqCount)
 						return false;
-					
+
 					var range = shirtReqs.Where(i => !(i.Key.Min > req.Key.Max || i.Key.Max < req.Key.Min));
 					var rangeCount = range.Sum(i => i.Value);
 					if (shirtCount == rangeCount)
@@ -357,38 +356,24 @@ class Program
 		return true;
 	}
 
-
-	private static void LimitRequestRanges(Dictionary<ShirtRequest, int> shirtReqs, Dictionary<int, int> shirts, int removedShirt)
-	{
-		foreach (var req in shirtReqs.Keys.ToArray())
-		{
-			if (req.Min == removedShirt || req.Max == removedShirt)
-			{
-				LimitToRangeGroup(shirtReqs, shirts, req);
-			}
-		}
-	}
+	
 	private static void LimitRequestRanges(Dictionary<ShirtRequest, int> shirtReqs, Dictionary<int, int> shirts)
 	{
 		foreach (var req in shirtReqs.Keys.ToArray())
 		{
-			LimitToRangeGroup(shirtReqs, shirts, req);
-		}
-	}
-	private static void LimitToRangeGroup(Dictionary<ShirtRequest, int> shirtReqs, Dictionary<int, int> shirts, ShirtRequest req)
-	{
-		var group = new ShirtRequest
-		{
-			Min = shirts.Keys.Where(size => size >= req.Min).Min(),
-			Max = shirts.Keys.Where(size => size <= req.Max).Max(),
-		};
-		if (!group.Equals(req))
-		{
-			if (shirtReqs.ContainsKey(group))
-				shirtReqs[group] += shirtReqs[req];
-			else
-				shirtReqs[group] = shirtReqs[req];
-			shirtReqs.Remove(req);
+			var group = new ShirtRequest
+			{
+				Min = shirts.Keys.Where(size => size >= req.Min).Min(),
+				Max = shirts.Keys.Where(size => size <= req.Max).Max(),
+			};
+			if (!group.Equals(req))
+			{
+				if (shirtReqs.ContainsKey(group))
+					shirtReqs[group] += shirtReqs[req];
+				else
+					shirtReqs[group] = shirtReqs[req];
+				shirtReqs.Remove(req);
+			}
 		}
 	}
 
