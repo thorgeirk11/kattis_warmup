@@ -5,7 +5,6 @@ using System.Diagnostics;
 
 class Program
 {
-
 	static List<int> SearchOrder = new List<int>();
 
 	private const int RandSize = 50;
@@ -140,15 +139,11 @@ class Program
 			foreach (var req in shirtReqs.Keys)
 			{
 				if (req.Min != req.Max) continue;
-				if (shirts.ContainsKey(req.Min) &&
-					shirts[req.Min] >= shirtReqs[req])
-				{
-					done.Add(req);
-					var left = shirts[req.Min] -= shirtReqs[req];
-					if (left == 0) shirts.Remove(req.Min);
-				}
-				else
-					return false;
+				if (!shirts.ContainsKey(req.Min)) return false;
+
+				var left = Subtract(shirts, req.Min, shirtReqs[req]);
+				if (left < 0) return false;
+				done.Add(req);
 			}
 			foreach (var req in done) shirtReqs.Remove(req);
 		} while (done.Count > 0);
@@ -168,31 +163,20 @@ class Program
 		} while (prevCount > shirtReqs.Count);
 
 		if (shirtReqs.Count == 0) return true;
-		foreach (var size in SearchOrder)
-		{
-			if (!shirts.ContainsKey(size)) continue;
+		var shirt = SearchOrder.First(s => shirts.ContainsKey(s));
+		Subtract(shirts, shirt);
 
-			shirts[size] -= 1;
-			if (shirts[size] == 0) shirts.Remove(size);
+		foreach (var req in shirtReqs.Keys)
+		{
+			if (req.Min > shirt || req.Max < shirt) continue;
 
 			var newShirtReqs = shirtReqs.ToDictionary(i => i.Key, i => i.Value);
-			foreach (var req in shirtReqs.Keys)
-			{
-				if (req.Min > size || req.Max < size) continue;
+			var newShirts = shirts.ToDictionary(i => i.Key, i => i.Value);
 
-				newShirtReqs[req] -= 1;
-				if (newShirtReqs[req] == 0) newShirtReqs.Remove(req);
+			Subtract(newShirtReqs, req);
 
-				if (DFS(newShirtReqs, shirts)) return true;
-
-				if (!newShirtReqs.ContainsKey(req)) newShirtReqs[req] = 1;
-				else newShirtReqs[req] += 1;
-			}
-
-			if (!shirts.ContainsKey(size)) shirts[size] = 1;
-			else shirts[size] += 1;
-
-			return false;
+			if (DFS(newShirtReqs, newShirts))
+				return true;
 		}
 		return false;
 	}
@@ -328,10 +312,7 @@ class Program
 			};
 			if (!group.Equals(req))
 			{
-				if (shirtReqs.ContainsKey(group))
-					shirtReqs[group] += shirtReqs[req];
-				else
-					shirtReqs[group] = shirtReqs[req];
+				Add(shirtReqs, group, shirtReqs[req]);
 				shirtReqs.Remove(req);
 			}
 		}
@@ -342,28 +323,20 @@ class Program
 		var input = Console.ReadLine().Split(' ');
 		for (int i = 0; i < N; i++)
 		{
-			var key = int.Parse(input[i]);
-			if (shirts.ContainsKey(key))
-				shirts[key] += 1;
-			else
-				shirts[key] = 1;
+			Add(shirts, int.Parse(input[i]));
 		}
 	}
 
-	private static void ReadShirtRequest(int N, Dictionary<ShirtRequest, int> shirts)
+	private static void ReadShirtRequest(int N, Dictionary<ShirtRequest, int> shirtReqs)
 	{
 		for (int i = 0; i < N; i++)
 		{
 			var input = Console.ReadLine().Split(' ');
-			var key = new ShirtRequest
+			Add(shirtReqs, new ShirtRequest
 			{
 				Min = int.Parse(input[0]),
 				Max = int.Parse(input[1])
-			};
-			if (shirts.ContainsKey(key))
-				shirts[key] += 1;
-			else
-				shirts[key] = 1;
+			});
 		}
 	}
 
@@ -376,15 +349,11 @@ class Program
 			var min = rand.Next(1, RandSize);
 			var max = rand.Next(min, RandSize);
 			if (totalMax < max) totalMax = max;
-			var key = new ShirtRequest
+			Add(shirtRequests, new ShirtRequest
 			{
 				Min = min,
 				Max = max
-			};
-			if (shirtRequests.ContainsKey(key))
-				shirtRequests[key] += 1;
-			else
-				shirtRequests[key] = 1;
+			});
 		}
 		return totalMax;
 	}
@@ -393,11 +362,23 @@ class Program
 		var rand = new Random();
 		for (int i = 0; i < N; i++)
 		{
-			var key = rand.Next(1, max + 1);
-			if (shirts.ContainsKey(key))
-				shirts[key] += 1;
-			else
-				shirts[key] = 1;
+			Add(shirts, rand.Next(1, max + 1));
 		}
 	}
+	private static int Subtract<T>(Dictionary<T, int> dic, T item, int amount = 1)
+	{
+		var left = dic[item] -= amount;
+		if (left == 0) dic.Remove(item);
+		return left;
+	}
+	private static int Add<T>(Dictionary<T, int> dic, T item, int amount = 1)
+	{
+		if (dic.ContainsKey(item))
+			return dic[item] += amount;
+		else
+			return dic[item] = amount;
+	}
 }
+
+
+
