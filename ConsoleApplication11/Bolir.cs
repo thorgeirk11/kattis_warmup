@@ -154,9 +154,10 @@ class Program
 				return false;
 			if (!CheckGroupings(shirtReqs, shirts))
 				return false;
+			if (shirtReqs.Count == 0)
+				return true;
 		} while (prevCount > shirtReqs.Count);
 
-		if (shirtReqs.Count == 0) return true;
 		var shirt = SearchOrder.First(s => shirts.ContainsKey(s));
 		Subtract(shirts, shirt);
 
@@ -181,10 +182,14 @@ class Program
 		var shirtsDone = new List<int>();
 		do
 		{
+			done.Clear();
+			shirtsDone.Clear();
 			if (shirts.Count == 0) return true;
+			var min = shirts.Keys.Min();
+			var max = shirts.Keys.Max();
 			foreach (var req in shirtReqs.OrderBy(i => i.Key.Max - i.Key.Min))
 			{
-				if (isSearchingGroup.Contains(req.Key))
+				if (isSearchingGroup.Contains(req.Key) || (req.Key.Max == max && req.Key.Min == min))
 					continue;
 				var s = shirts.Where(i => i.Key >= req.Key.Min && i.Key <= req.Key.Max);
 				var shirtCount = s.Sum(i => i.Value);
@@ -194,25 +199,10 @@ class Program
 
 				if (shirtCount == rangeCount)
 				{
-					foreach (var g in isSearchingGroup.ToArray())
-					{
-						var minQ = shirts.Keys.Where(size => size >= g.Min);
-						var min = minQ.Any() ? minQ.Min() : -1;
-						var maxQ = shirts.Keys.Where(size => size <= g.Max);
-						var max = maxQ.Any() ? maxQ.Max() : -1;
-						isSearchingGroup.Remove(g);
-						if (max >= min && max > 0)
-						{
-							isSearchingGroup.Add(new ShirtRequest { Max = max, Min = min });
-						}
-					}
-					if (isSearchingGroup.Contains(req.Key))
-						continue;
 					isSearchingGroup.Add(req.Key);
 
 					var newShirtReqs = range.ToDictionary(i => i.Key, i => i.Value);
 					var newShirts = s.ToDictionary(i => i.Key, i => i.Value);
-
 					if (DFS(newShirtReqs, newShirts))
 					{
 						done.AddRange(range.Select(i => i.Key));
