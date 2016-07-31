@@ -2,13 +2,16 @@
 using System.Linq;
 using System.Collections.Generic;
 using System.IO;
+using System.Diagnostics;
 
 class Program
 {
 	static List<int> SearchOrder = new List<int>();
 	static HashSet<ShirtRequest> isSearchingGroup = new HashSet<ShirtRequest>();
 
-	private const int RandSize = 20;
+
+
+	private const int RandSize = 50;
 	struct ShirtRequest
 	{
 		public int Min; public int Max;
@@ -24,12 +27,15 @@ class Program
 
 	static void Main()
 	{
-		var N = int.Parse(Console.ReadLine());
+		//TextReader In = File.OpenText("input.txt");
+		TextReader In = Console.In;
+
+		var N = int.Parse(In.ReadLine());
 		var shirtReqs = new Dictionary<ShirtRequest, int>();
 		var shirts = new Dictionary<int, int>();
 
-		ReadShirtRequest(N, shirtReqs, Console.In);
-		ReadShirts(N, shirts, Console.In);
+		ReadShirtRequest(N, shirtReqs, In);
+		ReadShirts(N, shirts, In);
 
 		int prevCount;
 		do
@@ -66,9 +72,6 @@ class Program
 	//	var shirtsReqs2 = new Dictionary<ShirtRequest, int>();
 	//	var shirts2 = new Dictionary<int, int>();
 	//	int itt = 0;
-	//	var sim1 = 0;
-	//	var sim2 = 0;
-	//	var tie = 0;
 	//	do
 	//	{
 	//		do
@@ -80,22 +83,17 @@ class Program
 	//			shirtsReqs2 = shirtReqs.ToDictionary(i => i.Key, i => i.Value);
 	//			shirts2 = shirts.ToDictionary(i => i.Key, i => i.Value);
 
-	//			if (!Preprocess(shirtReqs, shirts)) continue;
+	//			if (!Preprocess(shirtReqs, shirts))
+	//				continue;
+	//			if (!RemoveEqualMinMax(shirtReqs, shirts))
+	//				continue;
+	//			if (shirtReqs.Count == 0)
+	//				continue;
 	//			break;
 	//		} while (true);
 
 	//		var newShirtReqs = shirtReqs.ToDictionary(i => i.Key, i => i.Value);
 	//		var newShirts = shirts.ToDictionary(i => i.Key, i => i.Value);
-	//		var simple1 = CheckSimple1(shirtReqs, shirts);
-	//		var simple2 = CheckSimple2(shirtReqs, shirts);
-	//		if (simple1 || simple2)
-	//		{
-	//			if (simple1 && simple2) tie++;
-	//			else if (simple1) sim1++;
-	//			else if (simple2) sim2++;
-	//			Console.WriteLine(simple1 + " " + simple2);
-	//			continue;
-	//		}
 	//		SearchOrder = shirts.Keys.OrderBy(i => i).ToList();
 	//		Console.Write(itt++ + " Started: ");
 	//		var sw = Stopwatch.StartNew();
@@ -187,12 +185,20 @@ class Program
 			if (shirts.Count == 0) return true;
 			var min = shirts.Keys.Min();
 			var max = shirts.Keys.Max();
+			//Check for each range that there are enough shirts to satisfy requests.
 			foreach (var req in shirtReqs.OrderBy(i => i.Key.Max - i.Key.Min))
 			{
 				if (isSearchingGroup.Contains(req.Key) || (req.Key.Max == max && req.Key.Min == min))
 					continue;
-				var s = shirts.Where(i => i.Key >= req.Key.Min && i.Key <= req.Key.Max);
+				var r = shirtReqs.Where(i => i.Key.Min >= req.Key.Min && i.Key.Max <= req.Key.Max);
+				var s = shirts.Where(i => req.Key.InsideRange(i.Key));
+				var reqCount = r.Sum(i => i.Value);
 				var shirtCount = s.Sum(i => i.Value);
+				
+				if (shirtCount < reqCount)
+				{
+					return false;
+				}
 
 				var range = shirtReqs.Where(i => !(i.Key.Min > req.Key.Max || i.Key.Max < req.Key.Min));
 				var rangeCount = range.Sum(i => i.Value);
@@ -313,20 +319,6 @@ class Program
 
 			if (shirts.Count == 0 || shirtReqs.Count == 0) return true;
 
-			//Check for each range that there are enough shirts to satisfy requests.
-			foreach (var req in shirtReqs)
-			{
-				var r = shirtReqs.Where(i => i.Key.Min >= req.Key.Min && i.Key.Max <= req.Key.Max);
-				var s = shirts.Where(i => i.Key >= req.Key.Min && i.Key <= req.Key.Max);
-				var reqCount = r.Sum(i => i.Value);
-				var shirtCount = s.Sum(i => i.Value);
-				if (shirtCount < reqCount)
-				{
-					return false;
-				}
-			}
-			foreach (var shirt in shirtsDone) shirts.Remove(shirt);
-			foreach (var req in done) shirtReqs.Remove(req);
 		} while (needToCheckAgain);
 
 		return true;
